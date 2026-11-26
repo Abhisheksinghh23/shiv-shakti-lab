@@ -7,12 +7,22 @@ const N = 1024;
 const layerCache = {};
 
 // ---------- boot ----------
+// Terrain ships as base64 text chunks (data/terrain.b64.NN) plus a gzipped
+// no-data mask, decoded here. See README for how to rebuild data/*.bin.
+const b64 = (t) => Uint8Array.from(atob(t.trim()), (c) => c.charCodeAt(0));
+async function loadData() {
+  const parts = await Promise.all(Array.from({ length: 12 }, (_, i) =>
+    fetch('data/terrain.b64.' + String(i).padStart(2, '0')).then((r) => r.text())));
+  const chunks = parts.map(b64);
+  const tb = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+  let o = 0; for (const c of chunks) { tb.set(c, o); o += c.length; }
+  const gz = b64(await (await fetch('data/nodata.gz.b64')).text());
+  const nb = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  return [tb.buffer, nb];
+}
 async function boot() {
   meta = await (await fetch('data/meta.json')).json();
-  const [tb, nb] = await Promise.all([
-    fetch('data/terrain.bin').then((r) => r.arrayBuffer()),
-    fetch('data/nodata.bin').then((r) => r.arrayBuffer()),
-  ]);
+  const [tb, nb] = await loadData();
   T = C.makeTerrain(new Uint8Array(tb), new Uint8Array(nb), meta);
   proj = C.makeProj(meta);
   siteCell = proj.latLonToCell(C.SITE.lat, C.SITE.lon);
