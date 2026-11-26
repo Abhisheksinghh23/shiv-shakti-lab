@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shiv Shakti Lab: land and roam on real lunar terrain</title>
+<meta name="description" content="Land a spacecraft and plan rover routes on real lunar terrain from NASA's LROC camera, near the Chandrayaan-3 landing site. An educational demo, not a mission planning tool.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="loading">Loading 3 km of real Moon&hellip;</div>
+<header>
+  <div>
+    <h1><span>Shiv Shakti Lab</span></h1>
+    <div class="sub">Real lunar terrain from NASA's LRO camera, a 3 km square around the Chandrayaan-3 landing site. Land on it, then drive a rover across it. An educational demo, not mission software.</div>
+  </div>
+  <div class="small" id="siteline"></div>
+</header>
+<nav>
+  <button data-tab="land" class="on">1 &middot; Land</button>
+  <button data-tab="rove">2 &middot; Rove</button>
+  <button data-tab="data">3 &middot; Data &amp; method</button>
+</nav>
+<main>
+
+<section class="tab on" id="tab-land">
+  <div class="grid">
+    <div class="card">
+      <h3>Pick a landing spot</h3>
+      <canvas id="map1" width="1024" height="1024" aria-label="Terrain map: click to choose the landing target"></canvas>
+      <div class="small" id="read1" style="min-height:20px;margin-top:6px">Click the map to move the target. Dashed line is your approach path.</div>
+      <div class="row">
+        <label for="heading">Approach heading</label>
+        <input id="heading" type="range" min="0" max="359" value="90">
+        <b id="headingv" style="min-width:90px;text-align:right">90&deg; (east)</b>
+      </div>
+      <div class="row">
+        <div class="seg" id="layer1"><button data-l="hill" class="on">Terrain</button><button data-l="haz">Landing hazards</button></div>
+        <button class="btn alt" id="resetsite">Back to Shiv Shakti</button>
+      </div>
+      <div class="legend small" id="hazlegend"><span><i style="background:#2fbf71"></i>under 8&deg;</span><span><i style="background:#ffd166"></i>8&ndash;12&deg;</span><span><i style="background:#ff5d73"></i>over 12&deg; (beyond the lander's limit)</span></div>
+      <div class="small" style="margin-top:8px">Terrain cells are 3 m, so rocks and small craters are not resolved. About 0.3% of cells had no data and were filled from neighbours (shown as dark flecks, for example the scar left of centre).</div>
+      <div class="small" id="targetinfo" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h3>Powered descent (side view, true scale)</h3>
+      <canvas id="side" width="1000" height="470" aria-label="Side view of the lander descending over the terrain profile"></canvas>
+      <div class="hud" id="hud">
+        <div><b>Height</b><span id="h-alt">-</span></div>
+        <div><b>Vertical</b><span id="h-vy">-</span></div>
+        <div><b>Sideways</b><span id="h-vx">-</span></div>
+        <div><b>Tilt</b><span id="h-ang">-</span></div>
+        <div><b>Fuel (dv)</b><span id="h-fuel">-</span></div>
+        <div><b>To target</b><span id="h-dist">-</span></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="launch">Launch descent</button>
+        <button class="btn alt" id="auto">Autopilot: off</button>
+        <span class="small">Speed</span>
+        <div class="seg" id="warp"><button data-w="1" class="on">1&times;</button><button data-w="2">2&times;</button><button data-w="4">4&times;</button></div>
+      </div>
+      <div class="touch" id="touch"><button data-k="L">&#8630; Tilt</button><button data-k="T">&#9650; Burn</button><button data-k="R">Tilt &#8631;</button></div>
+      <div class="small">Keys: <b>&uarr;</b> / <b>W</b> / <b>Space</b> burn, <b>&larr; &rarr;</b> / <b>A D</b> tilt, <b>P</b> autopilot. The engine burns against gravity of 1.62 m/s&sup2;. Touch down within the limits ISRO published for Chandrayaan-3: at most 2 m/s down, 0.5 m/s sideways, ground slope up to 12&deg;. This demo also asks for a tilt of 12&deg; or less to the ground.</div>
+      <div id="report"></div>
+      <div class="small" id="stats" style="margin-top:6px"></div>
+    </div>
+  </div>
+</section>
+
+<section class="tab" id="tab-rove">
+  <div class="grid rove">
+    <div class="card">
+      <h3>Rover map</h3>
+      <canvas id="map2" width="1024" height="1024" aria-label="Terrain map for rover routing: click to set the destination"></canvas>
+      <div class="small" id="read2" style="min-height:20px;margin-top:6px">Click the map to choose a destination.</div>
+      <div class="row">
+        <div class="seg" id="layer2"><button data-l="hill">Terrain</button><button data-l="slope">Slope</button><button data-l="reach" class="on">Reach</button></div>
+        <div class="seg" id="clickmode"><button data-m="dest" class="on">Click sets destination</button><button data-m="start">Click sets start</button></div>
+      </div>
+      <div class="legend small" id="reachlegend"></div>
+      <div class="small" style="margin-top:6px">3 m cells: rocks and small craters are not resolved. About 0.3% of cells were filled from neighbours.</div>
+    </div>
+    <div>
+      <div class="card">
+        <h3>Rover steepness limit</h3>
+        <div class="row">
+          <input id="limit" type="range" min="1" max="15" step="0.5" value="5">
+          <b id="limitv" style="min-width:70px;text-align:right">5&deg;</b>
+        </div>
+        <div class="small">The rover treats any ground steeper than this as a wall. Slope is measured over a 12 m baseline. This is an adjustable assumption, not a Pragyan specification.</div>
+        <div id="reachsum" style="margin-top:8px"></div>
+        <div class="row"><button class="btn alt" id="usland">Start from my last landing</button><button class="btn alt" id="usesite">Start at Shiv Shakti</button></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>Route comparison</h3>
+        <div id="routes" class="small">Choose a destination on the map.</div>
+        <div class="row"><div class="seg" id="chartmode"><button data-c="slope" class="on">Slope along route</button><button data-c="elev">Elevation along route</button></div></div>
+        <canvas id="chart" width="600" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tab prose" id="tab-data">
+  <div class="grid two">
+    <div class="card">
+      <h2 style="margin-top:0">Where the terrain comes from</h2>
+      <dl class="kv" id="datakv"></dl>
+      <h2>How it gets onto your screen</h2>
+      <ol class="steps">
+        <li>Download NASA's LROC NAC digital terrain model of the Chandrayaan-3 landing area (a 488 MB GeoTIFF, 7668 &times; 15895 cells, 3 m each).</li>
+        <li>Read the GeoTIFF tags directly. The projection is south polar stereographic on a 1737.4 km sphere. Check that the corners match the product's own latitude and longitude limits.</li>
+        <li>Convert the published landing point (69.373&deg;S, 32.319&deg;E) to a cell and cut a 1024 &times; 1024 window around it, about 3.07 km on a side.</li>
+        <li>Fill the few no-data cells from their neighbours, then store heights as 16-bit numbers (2 mm steps). The page loads 2 MB.</li>
+        <li>In your browser: slopes come from height differences over 12 m. Hillshade is lit from low in the sky. Rover routes use Dijkstra's algorithm over 16 directions, written for this project.</li>
+        <li>The lander flies in the vertical plane along the approach line you pick. Its ground is the terrain profile under that line.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2 style="margin-top:0">What this is not</h2>
+      <ul>
+        <li><b>Not a mission planning tool.</b> The physics is simplified and the numbers are not ISRO's.</li>
+        <li><b>Not the real terrain after landing.</b> The terrain model was built from images taken before the landing. Its 3 m cells cannot show rocks or small craters, which are what really decide a landing.</li>
+        <li><b>Not Pragyan's route.</b> The rover tab shows what a rover with an assumed slope limit could reach. It does not replay what the real rover did.</li>
+        <li><b>Scoring limits</b> for touchdown speed and ground slope come from ISRO's published Chandrayaan-3 specification.</li>
+        <li>Similar real-terrain simulators exist. This one differs by showing the data pipeline and letting you compare rover routes.</li>
+      </ul>
+      <h2>Sources and credits</h2>
+      <ul>
+        <li>Terrain: LROC NAC DTM <code>NAC_DTM_VIKRAMSITE1</code> v1.9, <b>NASA/GSFC/Arizona State University</b>. PDS data is public domain; credit per the <a href="https://lroc.im-ldi.com/about/terms">LROC terms</a>. <a href="https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_VIKRAMSITE1">Product page</a>.</li>
+        <li>Landing site and touchdown limits: <a href="https://www.isro.gov.in/Chandrayaan3_Details.html">ISRO, Chandrayaan-3 details</a>.</li>
+        <li>Code is open source. See the repository for the extraction script and tests.</li>
+      </ul>
+      <div id="datanote" class="small"></div>
+    </div>
+  </div>
+</section>
+</main>
+<footer>Terrain: NASA/GSFC/Arizona State University (LROC NAC DTM). Educational demo built for Abhishek Kumar. Not affiliated with ISRO or NASA.</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
