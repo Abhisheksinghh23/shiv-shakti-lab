@@ -33,3 +33,8 @@ node test/run.mjs             # core checks: geodesy, autopilot, routing
 - `tools/extract_dem.py` how the tile was made
 
 Not affiliated with ISRO or NASA.
+
+
+## Data files in this repo
+
+The extraction script writes `terrain.bin` and `nodata.bin`. For hosting, the same bytes are stored as base64 text: `data/terrain.b64.00` to `.11` (concatenate and decode to get `terrain.bin`) and `data/nodata.gz.b64` (base64 of the gzipped `nodata.bin`). The page decodes them in the browser.
